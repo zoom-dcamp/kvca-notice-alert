@@ -11,7 +11,6 @@ GMAIL_PW = os.environ.get('GMAIL_PW')
 RECEIVER_EMAIL = os.environ.get('RECEIVER_EMAIL')
 
 def get_latest_post():
-    # 1. 봇 차단을 막기 위해 일반 크롬 브라우저처럼 위장 (헤더 강화)
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         'Accept-Language': 'ko-KR,ko;q=0.9'
@@ -26,7 +25,6 @@ def get_latest_post():
 
     soup = BeautifulSoup(response.text, 'html.parser')
     
-    # 2. 구조 유연화: tbody 유무와 상관없이 게시판 표의 모든 줄(tr) 탐색
     rows = soup.select('table tr')
     if not rows:
         print("게시판 형태를 찾을 수 없습니다.")
@@ -37,21 +35,23 @@ def get_latest_post():
         if not tds:
             continue
             
-        # 첫 번째 칸(보통 글 번호)의 텍스트 가져오기
         num_text = tds[0].text.strip()
         
-        # 글 번호가 숫자로 이루어져 있다면 (고정 공지사항 무시)
         if num_text.isdigit():
             title_tag = row.select_one('a')
             if title_tag:
                 title = title_tag.text.strip()
                 link_href = title_tag['href']
                 
-                # 링크 주소 완성
+                # [수정된 부분] 링크 주소 완성 로직 개선
                 if link_href.startswith('http'):
                     link = link_href
+                elif link_href.startswith('/'):
+                    # 슬래시(/)로 시작하면 도메인 바로 뒤에 붙임
+                    link = "https://www.kvca.or.kr" + link_href
                 else:
-                    link = "https://www.kvca.or.kr" + (link_href if link_href.startswith('/') else '/' + link_href)
+                    # 슬래시 없이 시작하면 중간 경로(Program/board)를 포함하여 붙임
+                    link = "https://www.kvca.or.kr/Program/board/" + link_href
                     
                 print(f"✅ 최신 글 발견 성공: {title}")
                 return title, link
@@ -77,7 +77,6 @@ def main():
 
     file_path = 'latest_post.txt'
     
-    # 파일이 없거나, 용량이 0 Bytes(비어있을) 때 새로 작성
     if not os.path.exists(file_path) or os.path.getsize(file_path) == 0:
         print("기존 파일이 비어있어, 현재 글을 새로 저장합니다.")
         with open(file_path, 'w', encoding='utf-8') as f:
